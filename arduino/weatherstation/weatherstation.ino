@@ -4,42 +4,99 @@
 #include "SparkFunMPL3115A2.h"
 #include "SparkFun_Si7021_Breakout_Library.h"
 
-const byte DOUT = 2;
-const byte DIN = 3;
+const byte WSPEED = 2;
+const byte RAIN = 3;
 const byte STAT_BLUE = 7;
 const byte STAT_GREEN = 8;
-const byte REFERENCE_3V3 = A3;
+const byte WDIR = A0;
 const byte LIGHT = A1;
 const byte BATT = A2;
-
+const byte REFERENCE_3V3 = A3;
 
 MPL3115A2 myPressure; //Create an instance of the pressure sensor
 Weather myHumidity;//Create an instance of the humidity sensor
-SoftwareSerial XBee(DOUT, DIN); // RX, TX
 
-unsigned long lastSecond;
+long lastSecond;
+unsigned int minutesSinceLastReset;
+byte seconds;
+byte seconds_2m;
+byte minutes;
+byte minutes_10m;
+
+long lastWindCheck = 0;
+volatile long lastWindIRQ = 0;
+volatile byte windClicks = 0;
+
+byte windspeedavg[120];
+#define WIND_DIR_AVG_SIZE 120
+int winddiravg[WIND_DIR_AVG_SIZE];
+float windgust_10m[10];
+int windgustdirection_10m[10];
+volatile float rainHour[10];
+
+int winddir; // [0-360 instantaneous wind direction]
+float windspeedmph; // [mph instantaneous wind speed]
+float windgustmph; // [mph current wind gust, using software specific time period]
+int windgustdir; // [0-360 using software specific time period]
+float windspdmph_avg2m; // [mph 2 minute average wind speed mph]
+int winddir_avg2m; // [0-360 2 minute average wind direction]
+float windgustmph_10m; // [mph past 10 minutes wind gust mph ]
+int windgustdir_10m; // [0-360 past 10 minutes wind gust direction]
+float rainin; // [rain inches over the past hour)] -- the accumulated rainfall in the past 60 min
+volatile float dailyrainin; // [rain inches so far today in local time]
+//float baromin = 30.03;// [barom in] - It's hard to calculate baromin locally, do this in the agent
+float pressure;
+//float dewptf; // [dewpoint F] - It's hard to calculate dewpoint locally, do this in the agent
+
+volatile unsigned long raintime, rainlast, raininterval, rain;
+
+void rainIRQ()
+{
+	raintime = millis();
+	raininterval = raintime - rainlast;
+	if (raininterval > 10) 
+	{
+		dailyrainin += 0.011; //each dump is .011" of water
+		rainHour[minutes] += 0.011; //increase this minute's amount of rain
+		rainlast = raintime;
+	}
+}
+
+void wspeedIRQ() 
+{
+	if(millis() - lastWindIRQ > 10) 
+	{
+		lastWindIRQ = millis();
+		windClicks++;
+	}
+}
 
 void setup() {
-  // put your setup code here, to run once:
-  XBee.begin(9600);
-  Serial.begin(9600);
-  Serial.println("Weather Station KE5EO");
+	Serial.begin(9600);
+	Serial.println("Weather Station KE5EO");
 
-  pinMode(STAT_BLUE, OUTPUT);
-  pinMode(STAT_GREEN, OUTPUT);
-  pinMode(REFERENCE_3V3, INPUT);
-  pinMode(LIGHT, INPUT);
+	pinMode(WDIR, INPUT);
+	pinMode(LIGHT, INPUT);
+	pinMode(REFERENCE_3V3, INPUT);
 
-  myPressure.begin();
-  myPressure.setModeBarometer();
-  myPressure.setOversampleRate(7);
-  myPressure.enableEventFlags();
+	pinMode(STAT_BLUE, OUTPUT);
+	pinMode(STAT_GREEN, OUTPUT);
 
-  myHumidity.begin();
+	myPressure.begin();
+	myPressure.setModeBarometer();
+	myPressure.setOversampleRate(7);
+	myPressure.enableEventFlags();
 
-  lastSecond = millis();
+	myHumidity.begin();
 
-  Serial.println("Weather Station online!");
+	lastSecond = millis();
+
+	attachInterrupt(0, rainIRQ, FALLING);
+	attachInterrupt(1, wspeedIRQ, FALLING);
+
+	interrupts();
+
+	Serial.println("Weather Station online!");
 }
 
 
@@ -64,36 +121,11 @@ void loop()
     }
     else
     {
-      Serial.print("Humidity = ");
-      Serial.print(humidityValue);
-      Serial.print("%,");
       float temp_h = myHumidity.getTempF();
-      Serial.print(" temp_h = ");
-      Serial.print(temp_h, 2);
-      Serial.print("F,");
-
       float pressureValue = myPressure.readPressure();
-      Serial.print(" Pressure = ");
-      Serial.print(pressureValue);
-      Serial.print("Pa,");
       float temp_p = myPressure.readTempF();
-      Serial.print(" temp_p = ");
-      Serial.print(temp_p, 2);
-      Serial.print("F,");
-
-      //Check light sensor
       float light_lvl = get_light_level();
-      Serial.print(" light_lvl = ");
-      Serial.print(light_lvl);
-      Serial.print("V,");
-
-      //Check batt level
       float batt_lvl = get_battery_level();
-      Serial.print(" VinPin = ");
-      Serial.print(batt_lvl);
-      Serial.print("V");
-      
-      Serial.println();
 
       digitalWrite(STAT_GREEN, HIGH);
       DynamicJsonDocument doc(100);
@@ -106,8 +138,8 @@ void loop()
       pressure["temperature"] = temp_p;
       doc["light"]["value"] = light_lvl;
       doc["power"]["battery"] = batt_lvl;
-      serializeJson(doc, XBee);
-      XBee.println();
+      serializeJson(doc, Serial);
+      Serial.println();
       digitalWrite(STAT_GREEN, LOW);
     }
 
