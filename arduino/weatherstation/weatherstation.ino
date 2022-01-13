@@ -158,7 +158,12 @@ void loop()
         byte incoming = Serial.read();
         if(incoming == '!')
         {
-
+            reportWeather();
+            delay(1000);
+        }
+        else if (incoming == '@')
+        {
+            midnightReset();
         }
     }
 
@@ -251,6 +256,20 @@ void reportWeather()
     Serial.println();
     digitalWrite(STAT_GREEN, LOW);
 
+}
+
+void midnightReset()
+{
+	dailyrainin = 0; //Reset daily amount of rain
+
+	windgustmph = 0; //Zero out the windgust for the day
+	windgustdir = 0; //Zero out the gust direction for the day
+
+	minutes = 0; //Reset minute tracker
+	seconds = 0;
+	lastSecond = millis(); //Reset variable used to track minutes
+
+	minutesSinceLastReset = 0; //Zero out the backup midnight reset variable
 }
 
 //Returns the voltage of the light sensor based on the 3.3V rail
