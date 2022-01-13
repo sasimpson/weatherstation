@@ -234,7 +234,19 @@ void calcWeather()
 
 void reportWeather()
 {
+	calcWeather();
+
     digitalWrite(STAT_GREEN, HIGH);
+	Serial.println(humidity);
+	Serial.println(pressure);
+	Serial.println(temperature);
+	Serial.println(light);
+	Serial.println(battery);
+	Serial.println(rainin);
+	Serial.println(windspeedmph);
+	Serial.println(winddir);
+
+	/*
     DynamicJsonDocument doc(100);
     JsonObject humidity = doc.createNestedObject("humidity");
     humidity["value"] = humidity;
@@ -253,6 +265,7 @@ void reportWeather()
     doc["light"]["value"] = light;
     doc["power"]["battery"] = battery;
     serializeJson(doc, Serial);
+	*/
     Serial.println();
     digitalWrite(STAT_GREEN, LOW);
 
