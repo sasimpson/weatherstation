@@ -11,6 +11,7 @@ const byte STAT_GREEN = 8;
 const byte WDIR = A0;
 const byte LIGHT = A1;
 const byte BATT = A2;
+const byte REFERENCE_3V3 = A3;
 
 
 MPL3115A2 myPressure; //Create an instance of the pressure sensor
@@ -86,11 +87,11 @@ void setup() {
 	pinMode(STAT_BLUE, OUTPUT);
 	pinMode(STAT_GREEN, OUTPUT);
 
-    myPressure.begin();
-    myPressure.setModeBarometer();
-    myPressure.setOversampleRate(7);
-    myPressure.enableEventFlags();
-    myPressure.setModeActive();
+	myPressure.begin();
+	myPressure.setModeBarometer();
+	myPressure.setOversampleRate(7);
+	myPressure.enableEventFlags();
+	myPressure.setModeActive();
 
 	myHumidity.begin();
 
@@ -102,6 +103,7 @@ void setup() {
 	interrupts();
 
 	Serial.println("Weather Staion online!");
+	reportWeather();
 }
 
 
@@ -168,7 +170,7 @@ void calcWeather()
     for (int i = 0; i < 120; i++)
         temp += windspdavg[i];
     temp /= 120.0;
-    windspdavg_avg2m = temp;
+    windspdmph_avg2m = temp;
 
     long sum = winddiravg[0];
     int D = winddiravg[0];
@@ -225,7 +227,7 @@ void calcWeather()
         rainin += rainHour[i];
 }
 
-func reportWeather()
+void reportWeather()
 {
     digitalWrite(STAT_GREEN, HIGH);
     DynamicJsonDocument doc(100);
@@ -243,8 +245,8 @@ func reportWeather()
     wind["speed"] = windspeedmph;
     wind["gust_speed"] = windgustmph;
     wind["gust_dir"] = windgustdir;
-    doc["light"]["value"] = light_lvl;
-    doc["power"]["battery"] = batt_lvl;
+    doc["light"]["value"] = light;
+    doc["power"]["battery"] = battery;
     serializeJson(doc, Serial);
     Serial.println();
     digitalWrite(STAT_GREEN, LOW);
@@ -327,3 +329,14 @@ int get_wind_direction()
 	return (-1); // error, disconnected?
 }
 
+int averageAnalogRead(int pinToRead)
+{
+	byte numberOfReadings = 8;
+	unsigned int runningValue = 0;
+
+	for(int x = 0 ; x < numberOfReadings ; x++)
+		runningValue += analogRead(pinToRead);
+	runningValue /= numberOfReadings;
+
+	return(runningValue);
+}
