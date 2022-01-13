@@ -112,7 +112,6 @@ void loop()
     //Print readings every second
     if (millis() - lastSecond >= 1000)
     {
-        digitalWrite(STAT_BLUE, HIGH); //Blink stat LED
         lastSecond += 1000;
 
         if(++seconds_2m > 119) seconds_2m = 0;
@@ -135,8 +134,6 @@ void loop()
         }
 
         delay(25);
-        digitalWrite(STAT_BLUE, LOW); //Turn off stat LED
-
 
         if(++seconds > 59)
         {
@@ -171,6 +168,7 @@ void loop()
 
 void calcWeather()
 {
+    digitalWrite(STAT_BLUE, HIGH); //Blink stat LED
     float temp = 0;
     for (int i = 0; i < 120; i++)
         temp += windspdavg[i];
@@ -206,30 +204,20 @@ void calcWeather()
         }
     }
 
-    humidity = myHumidity.getRH();
-    if (humidity == 998)
-    {
-        Serial.println("I2C communication to sensors is not working. Check solder connections.");
 
-        //Try re-initializing the I2C comm and the sensors
-        myPressure.begin();
-        myPressure.setModeBarometer();
-        myPressure.setOversampleRate(7);
-        myPressure.enableEventFlags();
-        myHumidity.begin();
-    }
-    else
-    {
-        temperature = myHumidity.getTempF();
-        pressure = myPressure.readPressure();
-//      float temp_p = myPressure.readTempF();
-        light = get_light_level();
-        battery = get_battery_level();
-    }
 
     rainin = 0;
     for(int i = 0; i < 60; i++)
         rainin += rainHour[i];
+
+    humidity = myHumidity.getRH();
+    temperature = myHumidity.getTempF();
+    pressure = myPressure.readPressure();
+    light = get_light_level();
+    battery = get_battery_level();
+
+    digitalWrite(STAT_BLUE, LOW); //Turn off stat LED
+
 }
 
 void reportWeather()
@@ -237,38 +225,62 @@ void reportWeather()
 	calcWeather();
 
     digitalWrite(STAT_GREEN, HIGH);
-	Serial.println(humidity);
-	Serial.println(pressure);
-	Serial.println(temperature);
-	Serial.println(light);
-	Serial.println(battery);
-	Serial.println(rainin);
-	Serial.println(windspeedmph);
-	Serial.println(winddir);
 
-	/*
     DynamicJsonDocument doc(100);
-    JsonObject humidity = doc.createNestedObject("humidity");
-    humidity["value"] = humidity;
-    JsonObject temperature = doc.createNestedObject("temperature");
-    humidity["temperature"] = temperature;
-    JsonObject pressure = doc.createNestedObject("pressure");
-    pressure["value"] = pressure;
-    JsonObject rainfall = doc.createNestedObject("rainfall");
-    rainfall["inches"] = rainin;
-    rainfall["daily"] = dailyrainin;
-    JsonObject wind = doc.createNestedObject("wind");
-    wind["dir"] = winddir;
-    wind["speed"] = windspeedmph;
-    wind["gust_speed"] = windgustmph;
-    wind["gust_dir"] = windgustdir;
-    doc["light"]["value"] = light;
-    doc["power"]["battery"] = battery;
-    serializeJson(doc, Serial);
-	*/
-    Serial.println();
-    digitalWrite(STAT_GREEN, LOW);
+    JsonObject humidityElem = doc.createNestedObject("humidity");
+    humidityElem["value"] = humidity;
+    humidityElem["units"] = "%";
+    Serial.print("humidity %: ");
+    Serial.println(humidity);
 
+    JsonObject temperatureElem = doc.createNestedObject("temperature");
+    temperatureElem["value"] = temperature;
+    temperatureElem["units"] = "F";
+    Serial.print("temperature: ");
+    Serial.println(temperature);
+
+    JsonObject pressureElem = doc.createNestedObject("pressure");
+    pressureElem["value"] = pressure;
+    pressureElem["units"] = "Pa";
+    Serial.print("pressure in Pa: ");
+    Serial.println(pressure);
+
+    JsonObject rainfallElem = doc.createNestedObject("rainfall");
+    rainfallElem["inches"] = rainin;
+    rainfallElem["daily"] = dailyrainin;
+    Serial.print("last hour rain in inches: ")
+    Serial.println(rainin);
+    Serial.print("daily rain in inches: ")
+    Serial.println(dailyrainin);
+
+    JsonObject windElem = doc.createNestedObject("wind");
+    windElem["dir"] = winddir;
+    windElem["speed"] = windspeedmph;
+    windElem["gust_speed"] = windgustmph;
+    windElem["gust_dir"] = windgustdir;
+    Serial.print("wind dir: ")
+    Serial.println(winddir);
+    Serial.print("wind speed in mph: ")
+    Serial.println(windspeedmph);
+    Serial.print("wind gust dir: ")
+    Serial.println(windgustdir);
+    Serial.print("wind gust speed in mph: ")
+    Serial.println(windgustmph);
+
+
+    doc["light"]["value"] = light;
+    Serial.print("light: ")
+    Serial.println(light);
+
+    doc["power"]["battery"] = battery;
+    Serial.print("battery")
+    Serial.println(battery);
+
+    Serial.println();
+    serializeJson(doc, Serial);
+    Serial.println();
+
+    digitalWrite(STAT_GREEN, LOW);
 }
 
 void midnightReset()
