@@ -4,6 +4,9 @@
 #include "SparkFunMPL3115A2.h"
 #include "SparkFun_Si7021_Breakout_Library.h"
 
+const bool DEBUG = false; 
+
+
 const byte WSPEED = 2;
 const byte RAIN = 3;
 const byte STAT_BLUE = 7;
@@ -230,53 +233,67 @@ void reportWeather()
     JsonObject humidityElem = doc.createNestedObject("humidity");
     humidityElem["value"] = humidity;
     humidityElem["units"] = "%";
-    Serial.print("humidity %: ");
-    Serial.println(humidity);
+	if (DEBUG) {
+		Serial.print("humidity %: ");
+		Serial.println(humidity);
+	}
 
     JsonObject temperatureElem = doc.createNestedObject("temperature");
     temperatureElem["value"] = temperature;
     temperatureElem["units"] = "F";
-    Serial.print("temperature: ");
-    Serial.println(temperature);
+	if (DEBUG) {
+		Serial.print("temperature: ");
+		Serial.println(temperature);
+	}
 
     JsonObject pressureElem = doc.createNestedObject("pressure");
     pressureElem["value"] = pressure;
     pressureElem["units"] = "Pa";
-    Serial.print("pressure in Pa: ");
-    Serial.println(pressure);
+    if (DEBUG) {
+		Serial.print("pressure in Pa: ");
+		Serial.println(pressure);
+	}
 
     JsonObject rainfallElem = doc.createNestedObject("rainfall");
     rainfallElem["inches"] = rainin;
     rainfallElem["daily"] = dailyrainin;
-    Serial.print("last hour rain in inches: ")
-    Serial.println(rainin);
-    Serial.print("daily rain in inches: ")
-    Serial.println(dailyrainin);
+	if (DEBUG) {
+		Serial.print("last hour rain in inches: ");
+		Serial.println(rainin);
+		Serial.print("daily rain in inches: ");
+		Serial.println(dailyrainin);
+	}
 
     JsonObject windElem = doc.createNestedObject("wind");
     windElem["dir"] = winddir;
     windElem["speed"] = windspeedmph;
     windElem["gust_speed"] = windgustmph;
     windElem["gust_dir"] = windgustdir;
-    Serial.print("wind dir: ")
-    Serial.println(winddir);
-    Serial.print("wind speed in mph: ")
-    Serial.println(windspeedmph);
-    Serial.print("wind gust dir: ")
-    Serial.println(windgustdir);
-    Serial.print("wind gust speed in mph: ")
-    Serial.println(windgustmph);
+	if (DEBUG) {
+		Serial.print("wind dir: ");
+		Serial.println(winddir);
+		Serial.print("wind speed in mph: ");
+		Serial.println(windspeedmph);
+		Serial.print("wind gust dir: ");
+		Serial.println(windgustdir);
+		Serial.print("wind gust speed in mph: ");
+		Serial.println(windgustmph);
+	}
 
 
     doc["light"]["value"] = light;
-    Serial.print("light: ")
-    Serial.println(light);
+	if (DEBUG) {
+		Serial.print("light: ");
+		Serial.println(light);
+	}
 
     doc["power"]["battery"] = battery;
-    Serial.print("battery")
-    Serial.println(battery);
+	if (DEBUG) {
+		Serial.print("battery");
+		Serial.println(battery);
+		Serial.println();
+	}
 
-    Serial.println();
     serializeJson(doc, Serial);
     Serial.println();
 
