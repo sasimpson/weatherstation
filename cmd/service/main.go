@@ -2,11 +2,12 @@ package main
 
 import (
 	"fmt"
+	"io"
+	"log"
+
 	"github.com/sasimpson/weatherstation/models"
 	"github.com/sasimpson/weatherstation/weatherstation"
 	"github.com/tarm/serial"
-	"io"
-	"log"
 )
 
 func main() {

@@ -3,9 +3,10 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
+
 	"github.com/sasimpson/weatherstation/models"
 	"github.com/tarm/serial"
-	"log"
 )
 
 func main() {

@@ -5,15 +5,16 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/sasimpson/weatherstation/models"
 	"io"
 	"log"
+
+	"github.com/sasimpson/weatherstation/models"
 )
 
 type SerialReader struct {
 	scanner *bufio.Scanner
-	buffer []byte
-	idx int
+	buffer  []byte
+	idx     int
 }
 
 func NewSerialReader(source io.Reader) *SerialReader {
@@ -28,7 +29,7 @@ func NewSerialReader(source io.Reader) *SerialReader {
 		if i := bytes.Index(data, []byte("}}\n{")); i >= 0 {
 			log.Println(data[0:i])
 			log.Println("search found at ", i)
-			return i+3, data[0:i+2], nil
+			return i + 3, data[0 : i+2], nil
 		}
 		if atEOF {
 			log.Println("atEOF")
