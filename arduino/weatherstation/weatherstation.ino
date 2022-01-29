@@ -4,7 +4,7 @@
 #include "SparkFunMPL3115A2.h"
 #include "SparkFun_Si7021_Breakout_Library.h"
 
-const bool DEBUG = false; 
+const bool DEBUG = true; 
 
 
 const byte WSPEED = 2;
@@ -229,7 +229,7 @@ void reportWeather()
 
     digitalWrite(STAT_GREEN, HIGH);
 
-    DynamicJsonDocument doc(100);
+    DynamicJsonDocument doc(150);
     JsonObject humidityElem = doc.createNestedObject("humidity");
     humidityElem["value"] = humidity;
     humidityElem["units"] = "%";
@@ -265,10 +265,20 @@ void reportWeather()
 	}
 
     JsonObject windElem = doc.createNestedObject("wind");
-    windElem["dir"] = winddir;
-    windElem["speed"] = windspeedmph;
-    windElem["gust_speed"] = windgustmph;
-    windElem["gust_dir"] = windgustdir;
+	JsonObject instant = windElem.createNestedObject("now");
+    instant["dir"] = winddir;
+    instant["speed"] = windspeedmph;
+    instant["gust_speed"] = windgustmph;
+    instant["gust_dir"] = windgustdir;
+
+	JsonObject twomin = windElem.createNestedObject("2m");
+	twomin["speed_avg"] = windspdmph_avg2m;
+	twomin["dir_avg"] = winddir_avg2m;
+
+	JsonObject tenmin = windElem.createNestedObject("10m");
+	tenmin["gustspeed_avg"] = windgustmph_10m;
+	tenmin["gustdir_avg"] = windgustdir_10m;
+
 	if (DEBUG) {
 		Serial.print("wind dir: ");
 		Serial.println(winddir);
