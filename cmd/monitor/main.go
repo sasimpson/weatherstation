@@ -31,7 +31,7 @@ func main() {
 
 	stream.Flush()
 
-	buf := make([]byte, 10)
+	buf := make([]byte, 1024)
 	n, err := stream.Read(buf)
 	if err != nil {
 		log.Fatal(err)
@@ -47,11 +47,11 @@ func main() {
 		}
 
 		err = json.NewDecoder(stream).Decode(&wd)
-		//err := json.Unmarshal(scanner.Text(), &wd)
 		if err != nil {
 			log.Println(err.Error())
 		}
 		fmt.Println(wd)
+		stream.Flush()
 		time.Sleep(1 * time.Second)
 	}
 	if err := scanner.Err(); err != nil {
