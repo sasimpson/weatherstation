@@ -37,7 +37,7 @@ type WeatherData struct {
 	} `json:"pressure"`
 	Temperature struct {
 		Celsius float64 `json:"temp_c"`
-		Fahrenheit string  `json:"temp_f"`
+		Fahrenheit float64  `json:"temp_f"`
 	} `json:"temperature"`
 	Rain struct {
 		Hour float64 `json:"inches"`

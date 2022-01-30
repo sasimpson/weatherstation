@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"time"
 
 	"github.com/tarm/serial"
 
@@ -45,19 +44,20 @@ func main() {
 	scanner := bufio.NewScanner(stream)
 	for scanner.Scan() {
 		var wd models.WeatherData
+		/*
 		log.Println("writing command")
 		_, err = stream.Write([]byte("!"))
 		if err != nil {
 			log.Fatal(err)
 		}
-
+		*/
 		log.Println("decoding stream")
 		err = json.NewDecoder(stream).Decode(&wd)
 		if err != nil {
 			log.Println(err.Error())
 		}
 		fmt.Println(wd)
-		time.Sleep(30 * time.Second)
+		//time.Sleep(30 * time.Second)
 	}
 	if err := scanner.Err(); err != nil {
 		log.Fatal(err)
