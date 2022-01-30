@@ -2,62 +2,72 @@
 #include <SoftwareSerial.h>
 #include <Wire.h>
 #include "SparkFunMPL3115A2.h"
-#include "SparkFun_Si7021_Breakout_Library.h"
+//#include "SparkFun_Si7021_Breakout_Library.h"
+#include "SparkFunHTU21D.h"
 
-const bool DEBUG = true; 
+const bool DEBUG = false; 
 
+MPL3115A2 myPressure; //Create an instance of the pressure sensor
+HTU21D myHumidity;//Create an instance of the humidity sensor
 
-const byte WSPEED = 2;
-const byte RAIN = 3;
+//Hardware pin defs
+//Digital IO
+const byte WSPEED = 3;
+const byte RAIN = 2;
 const byte STAT_BLUE = 7;
 const byte STAT_GREEN = 8;
+
+//Analog IO
 const byte WDIR = A0;
 const byte LIGHT = A1;
 const byte BATT = A2;
 const byte REFERENCE_3V3 = A3;
 
-
-MPL3115A2 myPressure; //Create an instance of the pressure sensor
-Weather myHumidity;//Create an instance of the humidity sensor
-
+//Globals
+//manage time related stuff
 long lastSecond;
-unsigned int minutesSinceLastReset;
 byte seconds;
 byte seconds_2m;
 byte minutes;
 byte minutes_10m;
+unsigned int minutesSinceLastReset;
 
+//wind
 long lastWindCheck = 0;
 volatile long lastWindIRQ = 0;
 volatile byte windClicks = 0;
 
-byte windspdavg[120];
+byte windspdavg[120]; //windspeed over 2m
 #define WIND_DIR_AVG_SIZE 120
-int winddiravg[WIND_DIR_AVG_SIZE];
+int winddiravg[WIND_DIR_AVG_SIZE]; //120 ints to keep track of 2 min avg
 float windgust_10m[10];
 int windgustdirection_10m[10];
+
+//rain
 volatile float rainHour[10];
 
-int winddir; // [0-360 instantaneous wind direction]
-float windspeedmph; // [mph instantaneous wind speed]
-float windgustmph; // [mph current wind gust, using software specific time period]
-int windgustdir; // [0-360 using software specific time period]
-float windspdmph_avg2m; // [mph 2 minute average wind speed mph]
-int winddir_avg2m; // [0-360 2 minute average wind direction]
-float windgustmph_10m; // [mph past 10 minutes wind gust mph ]
-int windgustdir_10m; // [0-360 past 10 minutes wind gust direction]
-float rainin; // [rain inches over the past hour)] -- the accumulated rainfall in the past 60 min
-volatile float dailyrainin; // [rain inches so far today in local time]
+int winddir = 0; // [0-360 instantaneous wind direction]
+float windspeedmph = 0; // [mph instantaneous wind speed]
+float windgustmph = 0; // [mph current wind gust, using software specific time period]
+int windgustdir = 0; // [0-360 using software specific time period]
+float windspdmph_avg2m = 0; // [mph 2 minute average wind speed mph]
+int winddir_avg2m = 0; // [0-360 2 minute average wind direction]
+float windgustmph_10m = 0; // [mph past 10 minutes wind gust mph ]
+int windgustdir_10m = 0; // [0-360 past 10 minutes wind gust direction]
+
+float humidity = 0;
+float temperature = 0;
+float rainin = 0; // [rain inches over the past hour)] -- the accumulated rainfall in the past 60 min
+volatile float dailyrainin = 0; // [rain inches so far today in local time]
 //float baromin = 30.03;// [barom in] - It's hard to calculate baromin locally, do this in the agent
-float pressure;
+float pressure = 0;
 //float dewptf; // [dewpoint F] - It's hard to calculate dewpoint locally, do this in the agent
-float humidity;
-float temperature;
-float light;
-float battery;
+float light = 455;
+float battery = 11.8;
 
 volatile unsigned long raintime, rainlast, raininterval, rain;
 
+//Interrupt routines (called by hardware)
 void rainIRQ()
 {
 	raintime = millis();
@@ -83,18 +93,22 @@ void setup() {
 	Serial.begin(9600);
 	Serial.println("Weather Station KE5EO");
 
-	pinMode(WDIR, INPUT);
+	pinMode(STAT_BLUE, OUTPUT);
+	pinMode(STAT_GREEN, OUTPUT);
+
+	pinMode(WSPEED, INPUT_PULLUP);
+	pinMode(RAIN, INPUT_PULLUP);
+
+	//pinMode(WDIR, INPUT);
 	pinMode(LIGHT, INPUT);
 	pinMode(REFERENCE_3V3, INPUT);
 
-	pinMode(STAT_BLUE, OUTPUT);
-	pinMode(STAT_GREEN, OUTPUT);
 
 	myPressure.begin();
 	myPressure.setModeBarometer();
 	myPressure.setOversampleRate(7);
 	myPressure.enableEventFlags();
-	myPressure.setModeActive();
+	//myPressure.setModeActive();
 
 	myHumidity.begin();
 
@@ -106,37 +120,40 @@ void setup() {
 	interrupts();
 
 	Serial.println("Weather Staion online!");
-	reportWeather();
+	//reportWeather();
 }
 
 
 void loop()
 {
-    //Print readings every second
+    //keep track of what minute it is
     if (millis() - lastSecond >= 1000)
     {
         lastSecond += 1000;
 
         if(++seconds_2m > 119) seconds_2m = 0;
+		
+		float currentSpeed = get_wind_speed();
+        windspeedmph = currentSpeed;
 
-        windspeedmph = get_wind_speed();
-        winddir = get_wind_direction();
+		int currentDirection = get_wind_direction();
+
         windspdavg[seconds_2m] = (int)windspeedmph;
-        winddiravg[seconds_2m] = winddir;
-
-        if(windspeedmph > windgust_10m[minutes_10m])
+        winddiravg[seconds_2m] = currentDirection;
+	
+		//check to see if this is a gust for the last 10 min
+        if(currentSpeed > windgust_10m[minutes_10m])
         {
-            windgust_10m[minutes_10m] = windspeedmph;
-            windgustdirection_10m[minutes_10m] = winddir;
+            windgust_10m[minutes_10m] = currentSpeed;
+            windgustdirection_10m[minutes_10m] = currentDirection;
         }
 
-        if(windspeedmph > windgustmph)
+		//chcek to see if this is the gust for the day
+        if(currentSpeed > windgustmph)
         {
-            windgustmph = windspeedmph;
-            windgustdir = winddir;
+            windgustmph = currentSpeed;
+            windgustdir = currentDirection;
         }
-
-        delay(25);
 
         if(++seconds > 59)
         {
@@ -144,10 +161,11 @@ void loop()
             if(++minutes > 59) minutes = 0;
             if(++minutes_10m > 9) minutes_10m = 0;
 
+			//zero out this minute's rainfall and windgust
             rainHour[minutes] = 0;
             windgust_10m[minutes_10m] = 0;
 
-            minutesSinceLastReset++;
+            //minutesSinceLastReset++;
         }
     }
 
@@ -172,12 +190,17 @@ void loop()
 void calcWeather()
 {
     digitalWrite(STAT_BLUE, HIGH); //Blink stat LED
+
+	winddir = get_wind_direction();
+
+	//calculate windspeed average 2m
     float temp = 0;
     for (int i = 0; i < 120; i++)
         temp += windspdavg[i];
     temp /= 120.0;
     windspdmph_avg2m = temp;
 
+	//calculate winddir average 2m
     long sum = winddiravg[0];
     int D = winddiravg[0];
     for(int i = 1; i < WIND_DIR_AVG_SIZE; i++)
@@ -186,7 +209,7 @@ void calcWeather()
         if(delta < -180)
             D += delta + 360;
         else if (delta > 180)
-            D += delta + 360;
+            D += delta - 360;
         else
             D += delta;
 
@@ -196,6 +219,7 @@ void calcWeather()
     if(winddir_avg2m >= 360) winddir_avg2m -= 360;
     if(winddir_avg2m < 0) winddir_avg2m += 360;
 
+	//find largest gust in last 10 min
     windgustmph_10m = 0;
     windgustdir_10m = 0;
     for(int i = 0; i < 10; i++)
@@ -207,15 +231,23 @@ void calcWeather()
         }
     }
 
+	//get humidity 
+    humidity = myHumidity.readHumidity();
 
+	//get temp from humidity sensor
+	temperature = myHumidity.readTemperature();
 
+	//get temp from pressure sensor
+    //temperature = myPressure.readTempF();
+
+	//total rainfall for the day is calc'ed with the interrupt
     rainin = 0;
     for(int i = 0; i < 60; i++)
         rainin += rainHour[i];
 
-    humidity = myHumidity.getRH();
-    temperature = myHumidity.getTempF();
+	//get pressure
     pressure = myPressure.readPressure();
+
     light = get_light_level();
     battery = get_battery_level();
 
@@ -229,7 +261,7 @@ void reportWeather()
 
     digitalWrite(STAT_GREEN, HIGH);
 
-    DynamicJsonDocument doc(150);
+    DynamicJsonDocument doc(250);
     JsonObject humidityElem = doc.createNestedObject("humidity");
     humidityElem["value"] = humidity;
     humidityElem["units"] = "%";
@@ -239,8 +271,8 @@ void reportWeather()
 	}
 
     JsonObject temperatureElem = doc.createNestedObject("temperature");
-    temperatureElem["value"] = temperature;
-    temperatureElem["units"] = "F";
+    temperatureElem["temp_c"] = temperature;
+    temperatureElem["temp_f"] = (temperature * (9/5)) + 32.0;
 	if (DEBUG) {
 		Serial.print("temperature: ");
 		Serial.println(temperature);
@@ -343,7 +375,7 @@ float get_battery_level()
 {
     float operatingVoltage = analogRead(REFERENCE_3V3);
     float rawVoltage = analogRead(BATT);
-    operatingVoltage = 3.30 / operatingVoltage; //The reference voltage is 3.3V
+    operatingVoltage = 3.3 / operatingVoltage; //The reference voltage is 3.3V
     rawVoltage = operatingVoltage * rawVoltage; //Convert the 0 to 1023 int to actual voltage on BATT pin
     rawVoltage *= 4.90; //(3.9k+1k)/1k - multiple BATT voltage by the voltage divider to get actual system voltage
     return (rawVoltage);
