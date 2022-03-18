@@ -4,28 +4,6 @@ import (
 	"fmt"
 )
 
-// WeatherData
-/*
-   {
-           "humidity" : {
-                   "value":38.7464,
-                   "units":"%"
-           },
-           "temperature": {
-                   "value":75.43166,
-                   "units":"F"
-           },
-           "pressure":{
-                   "value":96543.25,
-                   "units":"Pa"
-           },
-           "rainfall":{
-                   "inches":null,
-                   "daily":2.134002
-           }
-   }
-*/
-
 type WeatherData struct {
 	Humidity struct {
 		Value float64 `json:"value"`
@@ -40,7 +18,7 @@ type WeatherData struct {
 		Fahrenheit float64  `json:"temp_f"`
 	} `json:"temperature"`
 	Rain struct {
-		Hour float64 `json:"inches"`
+		Hourly float64 `json:"hourly"`
 		Daily float64 `json:"daily"`
 	} `json:"rainfall"`
 	Wind struct {
@@ -62,9 +40,10 @@ type WeatherData struct {
 	Light struct {
 		Value float64 `json:"value"`
 	} `json:"light"`
+	Timestamp int64 `json:"dateTime"`
 }
 
 
 func (wd WeatherData) String() string {
-	return fmt.Sprintf("%0.2f degF, %0.2f %s, %0.2f %s, %0.2f in Rain, %0.2f mph in %d degrees", wd.Temperature.Fahrenheit, wd.Pressure.Value, wd.Pressure.Units, wd.Humidity.Value, wd.Humidity.Units, wd.Rain.Hour, wd.Wind.Now.Speed, wd.Wind.Now.Direction)
+	return fmt.Sprintf("%0.2f degF, %0.2f %s, %0.2f %s, %0.2f in Rain, %0.2f mph in %d degrees", wd.Temperature.Fahrenheit, wd.Pressure.Value, wd.Pressure.Units, wd.Humidity.Value, wd.Humidity.Units, wd.Rain.Hourly, wd.Wind.Now.Speed, wd.Wind.Now.Direction)
 }

@@ -459,7 +459,7 @@ void reportWeather()
     pressureElem["units"] = "Pa";
 
     JsonObject rainfallElem = doc.createNestedObject("rainfall");
-    rainfallElem["inches"] = rainin;
+    rainfallElem["hourly"] = rainin;
     rainfallElem["daily"] = dailyrainin;
 
     JsonObject windElem = doc.createNestedObject("wind");

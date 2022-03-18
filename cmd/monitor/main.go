@@ -3,15 +3,26 @@ package main
 import (
 	"bufio"
 	"encoding/json"
-	"fmt"
 	"log"
+	"bytes"
+	"net/http"
+	"time"
 
 	"github.com/tarm/serial"
 
 	"github.com/sasimpson/weatherstation/models"
 )
 
+const (
+	processWorkers int = 1
+)
+
 func main() {
+	processWorkerPool := make(chan *models.WeatherData, processWorkers)
+	for i := 0; i < processWorkers; i++ {
+		go processWeather(i, processWorkerPool)
+	}
+
 	//serial config
 	config := &serial.Config{
 		Name:     "/dev/ttyACM0",
@@ -27,40 +38,56 @@ func main() {
 		log.Fatal(err)
 	}
 	defer stream.Close()
-	log.Println("loaded stream")
-
-	//stream.Flush()
-
-	/*
+	stream.Flush()
 	buf := make([]byte, 1024)
-	n, err := stream.Read(buf)
+	_, err = stream.Read(buf)
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Printf("%q", buf[:n])
-	*/
 
-	log.Println("init scanner")
 	scanner := bufio.NewScanner(stream)
 	for scanner.Scan() {
 		var wd models.WeatherData
-		/*
-		log.Println("writing command")
-		_, err = stream.Write([]byte("!"))
-		if err != nil {
-			log.Fatal(err)
-		}
-		*/
-		log.Println("decoding stream")
 		err = json.NewDecoder(stream).Decode(&wd)
 		if err != nil {
 			log.Println(err.Error())
 		}
-		fmt.Println(wd)
-		//time.Sleep(30 * time.Second)
+		if (wd.Pressure.Value != 0) {
+			now := time.Now()
+			wd.Timestamp = now.Unix()
+			processWorkerPool <- &wd
+		}
 	}
 	if err := scanner.Err(); err != nil {
 		log.Fatal(err)
 	}
 
+}
+
+func processWeather(w int, jobs <-chan *models.WeatherData) {
+
+	var counter int
+	for weatherData := range jobs {
+		log.Println(weatherData)
+		if counter > 15 {
+			log.Println("xmit")
+			data, err := json.Marshal(weatherData)
+			if err != nil {
+				log.Println(err)
+			}
+			resp, err := http.Post("http://chilli.simphouse.com:1880/weather", "application/json", bytes.NewBuffer(data))
+			if err != nil {
+				log.Println(err)
+				continue
+			}
+
+			if resp.StatusCode != 200 {
+				log.Println("invalid status code: %d", resp.StatusCode)
+			}
+			resp.Body.Close()
+			counter = 0
+		} else {
+			counter++
+		}
+	}
 }
