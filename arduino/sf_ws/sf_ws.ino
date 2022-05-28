@@ -452,7 +452,7 @@ void reportWeather()
 
     JsonObject temperatureElem = doc.createNestedObject("temperature");
     temperatureElem["temp_c"] = temperature;
-    temperatureElem["temp_f"] = (temperature * (9/5)) + 32.0;
+    temperatureElem["temp_f"] = (temperature * 1.8) + 32.0;
 
     JsonObject pressureElem = doc.createNestedObject("pressure");
     pressureElem["value"] = pressure;
